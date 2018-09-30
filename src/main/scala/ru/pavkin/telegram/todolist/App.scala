@@ -1,12 +1,13 @@
 package ru.pavkin.telegram.todolist
 
-import cats.effect.IO
-import fs2.{Stream, StreamApp}
+import cats.effect.{ContextShift, ExitCode, IO, IOApp}
 
-object App extends StreamApp[IO] {
+object App extends IOApp {
 
-  def stream(args: List[String], requestShutdown: IO[Unit]): Stream[IO, StreamApp.ExitCode] = for {
-    token <- Stream.eval(IO(System.getenv("TODOLIST_BOT_TOKEN")))
-    exitCode <- new TodoListBotProcess[IO](token).run.last.map(_ => StreamApp.ExitCode.Success)
-  } yield exitCode
+  implicit val shift: ContextShift[IO] =
+    cats.effect.internals.IOContextShift.global
+
+  def run(args: List[String]): IO[ExitCode] =
+    new TodoListBotProcess[IO].run.compile.drain.map(_ => ExitCode.Success)
+
 }
