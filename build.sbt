@@ -25,28 +25,39 @@ val monocle = Seq(
 )
 val catsEffect = "org.typelevel" %% "cats-effect" % "1.0.0"
 
-lazy val root = (project in file("."))
-  .settings(
-    organization := "ru.pavkin",
-    name := "telegram-bot-fs2",
-    version := "0.0.1-SNAPSHOT",
-    scalaVersion := "2.12.6",
-    libraryDependencies ++= Seq(
-      compilerPlugin(
-        "org.spire-math" %% "kind-projector" % kindProjectorVersion),
-      "org.http4s" %% "http4s-blaze-client" % http4sVersion,
-      "org.http4s" %% "http4s-circe" % http4sVersion,
-      "io.circe" %% "circe-core" % circeVersion,
-      "io.circe" %% "circe-generic" % circeVersion,
-      "io.chrisdavenport" %% "log4cats-core" % log4CatsVersion,
-      "io.chrisdavenport" %% "log4cats-slf4j" % log4CatsVersion,
-      "org.slf4j" % "slf4j-simple" % slf4jVersion,
-      scalaCheck,
-      scalaTest,
-      magnolia,
-      typesafeConfig,
-      pureconfig,
-      catsEffect,
-      catsMTL
-    ) ++ doobie ++ testContainers ++ monocle
-  )
+lazy val baseSettings = Seq(
+  libraryDependencies ++= Seq(
+    compilerPlugin("org.spire-math" %% "kind-projector" % kindProjectorVersion),
+    "org.http4s" %% "http4s-blaze-client" % http4sVersion,
+    "org.http4s" %% "http4s-circe" % http4sVersion,
+    "io.circe" %% "circe-core" % circeVersion,
+    "io.circe" %% "circe-generic" % circeVersion,
+    "io.chrisdavenport" %% "log4cats-core" % log4CatsVersion,
+    "io.chrisdavenport" %% "log4cats-slf4j" % log4CatsVersion,
+    "org.slf4j" % "slf4j-simple" % slf4jVersion,
+    scalaCheck,
+    scalaTest,
+    magnolia,
+    typesafeConfig,
+    pureconfig,
+    catsEffect,
+    catsMTL
+  ) ++ doobie ++ testContainers ++ monocle,
+  sources in (Compile, doc) := Nil,
+  organization := "ru.pavkin",
+  name := "telegram-bot-fs2",
+  version := "0.0.1-SNAPSHOT",
+  scalaVersion := "2.12.8",
+)
+
+def module(name: String): Project =
+  Project(id = name, base = file(s"modules/$name"))
+    .settings(
+      baseSettings
+    )
+
+lazy val tgbot =
+  module("tgbot")
+
+lazy val issueTracker =
+  module("issue-tracker")

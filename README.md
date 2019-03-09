@@ -6,12 +6,12 @@ Example purely functional telegram bot implementation with FS2 and http4s client
 
 1. Create a new bot for yourself with @BotFather: https://core.telegram.org/bots#6-botfather
 2. Export the token to config
-3. `sbt run`
+3. `project tgbot; sbt run`
 4. Just chat with the bot using your telegram app!
 
 ## Run test
 
 ```
-sbt test
+project tests; sbt test
 ```
 
