@@ -1,4 +1,4 @@
-package com.github.leammas.issue
+package com.github.leammas.issue.issuetracker
 
 import cats.effect.{ContextShift, ExitCode, IO, IOApp}
 

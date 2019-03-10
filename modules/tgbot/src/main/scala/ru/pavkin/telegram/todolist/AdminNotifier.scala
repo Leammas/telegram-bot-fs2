@@ -12,6 +12,7 @@ trait AdminNotifier[F[_]] {
 
 }
 
+// @todo make it publisher
 final class LazyAdminNotifier[F[_]: Applicative] extends AdminNotifier[F] {
   def notify(chatId: ChatId): F[Unit] = ().pure[F]
 }

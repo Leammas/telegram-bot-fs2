@@ -25,6 +25,17 @@ val monocle = Seq(
 )
 val catsEffect = "org.typelevel" %% "cats-effect" % "1.0.0"
 
+val aecorVersion = "0.18.0"
+
+val aecor = Seq(
+  "io.aecor" %% "core" % aecorVersion,
+  "io.aecor" %% "schedule" % aecorVersion,
+  "io.aecor" %% "akka-cluster-runtime" % aecorVersion,
+  "io.aecor" %% "distributed-processing" % aecorVersion,
+  "io.aecor" %% "boopickle-wire-protocol" % aecorVersion,
+  "io.aecor" %% "test-kit" % aecorVersion % Test
+)
+
 lazy val baseSettings = Seq(
   libraryDependencies ++= Seq(
     compilerPlugin("org.spire-math" %% "kind-projector" % kindProjectorVersion),
@@ -60,4 +71,9 @@ lazy val tgbot =
   module("tgbot")
 
 lazy val issueTracker =
-  module("issue-tracker")
+  module("issue-tracker").settings(
+    libraryDependencies ++= aecor,
+    scalacOptions += "-Ypartial-unification",
+    addCompilerPlugin(
+      "org.scalameta" % "paradise" % "3.0.0-M11" cross CrossVersion.full)
+  )
