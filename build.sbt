@@ -6,10 +6,11 @@ val circeVersion = "0.9.2"
 val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.13.4" % Test
 val scalaTest = "org.scalatest" %% "scalatest" % "3.0.3" % Test
 val magnolia = "com.propensive" %% "magnolia" % "0.6.1" % Test
-val doobieVersion = "0.6.0-M3"
+val doobieVersion = "0.6.0"
 val doobie = Seq(
   "org.tpolecat" %% "doobie-core" % doobieVersion,
-  "org.tpolecat" %% "doobie-postgres" % doobieVersion
+  "org.tpolecat" %% "doobie-postgres" % doobieVersion,
+  "org.tpolecat" %% "doobie-hikari"    % doobieVersion
 )
 val testContainers = Seq(
   "com.dimafeng" %% "testcontainers-scala" % "0.14.0" % Test,
@@ -33,6 +34,7 @@ val aecor = Seq(
   "io.aecor" %% "akka-cluster-runtime" % aecorVersion,
   "io.aecor" %% "distributed-processing" % aecorVersion,
   "io.aecor" %% "boopickle-wire-protocol" % aecorVersion,
+  "io.aecor" %% "aecor-postgres-journal" % "0.3.0",
   "io.aecor" %% "test-kit" % aecorVersion % Test
 )
 
@@ -56,7 +58,6 @@ lazy val baseSettings = Seq(
   ) ++ doobie ++ testContainers ++ monocle,
   sources in (Compile, doc) := Nil,
   organization := "ru.pavkin",
-  name := "telegram-bot-fs2",
   version := "0.0.1-SNAPSHOT",
   scalaVersion := "2.12.8",
 )
@@ -67,8 +68,11 @@ def module(name: String): Project =
       baseSettings
     )
 
+lazy val common =
+  module("common")
+
 lazy val tgbot =
-  module("tgbot")
+  module("tgbot").dependsOn(common)
 
 lazy val issueTracker =
   module("issue-tracker").settings(
@@ -76,4 +80,4 @@ lazy val issueTracker =
     scalacOptions += "-Ypartial-unification",
     addCompilerPlugin(
       "org.scalameta" % "paradise" % "3.0.0-M11" cross CrossVersion.full)
-  )
+  ).dependsOn(common)
