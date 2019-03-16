@@ -2,6 +2,7 @@ package ru.pavkin.telegram.todolist
 
 import cats.effect.{ContextShift, Effect}
 import cats.implicits._
+import com.github.leammas.postgres.{Postgres, PostgresConfig}
 import com.typesafe.config.ConfigFactory
 import fs2.Stream
 import io.chrisdavenport.log4cats.slf4j._
@@ -11,7 +12,6 @@ import org.http4s.circe._
 import org.http4s.client.blaze.Http1Client
 import ru.pavkin.telegram.api.Http4SBotAPI
 import ru.pavkin.telegram.api.dto.{BotResponse, BotUpdate}
-import ru.pavkin.telegram.{Postgres, PostgresConfig}
 
 import scala.language.higherKinds
 

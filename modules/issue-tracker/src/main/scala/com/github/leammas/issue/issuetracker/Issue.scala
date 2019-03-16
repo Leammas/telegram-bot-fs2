@@ -1,27 +1,27 @@
 package com.github.leammas.issue.issuetracker
 
-import aecor.macros.boopickleWireProtocol
-import cats.tagless.autoFunctorK
-import boopickle.Default._
-import Issue._
+import java.util.UUID
+
 import aecor.MonadActionLiftReject
-import aecor.runtime.akkapersistence.serialization._
-import com.github.leammas.issue.common.ChatId
-import io.circe.{Decoder, Encoder}
+import aecor.data.Folded.syntax._
+import boopickle.Default._
+import aecor.data._
+import aecor.encoding.{KeyDecoder, KeyEncoder}
+import aecor.journal.postgres.PostgresEventJournal.Serializer
+import aecor.macros.boopickleWireProtocol
+import aecor.runtime.Eventsourced.Entities
+import cats.data.Chain
+import cats.effect.SyncIO
+import cats.implicits._
+import cats.tagless.autoFunctorK
+import cats.{Functor, Monad}
+import com.github.leammas.issue.common.{ChatId, JsonPersistence}
+import com.github.leammas.issue.issuetracker.Issue._
+import com.github.leammas.issue.issuetracker.IssueEvent.{IssueCommentAdded, IssueCreated, IssueResolved}
 import io.circe.generic.semiauto
-import com.github.leammas.issue.common.JsonPersistence._
+import io.circe.{Decoder, Encoder}
 
 import scala.language.higherKinds
-import aecor.data.Folded
-import aecor.data.Folded.syntax._
-import cats.{Applicative, Functor}
-import cats.data.Chain
-import cats.implicits._
-import com.github.leammas.issue.issuetracker.IssueEvent.{
-  IssueCommentAdded,
-  IssueCreated,
-  IssueResolved
-}
 
 final case class IssueId(value: java.util.UUID) extends AnyVal
 
@@ -36,6 +36,9 @@ trait Issue[F[_]] {
 object Issue {
   type Description = String
   type Comment = String
+  type IssueKey = UUID
+  type Issues[F[_]] =
+    Entities.Rejectable[IssueKey, Issue, F, IssueRejection]
 }
 
 sealed trait IssueRejection extends Product with Serializable
@@ -51,13 +54,11 @@ object IssueEvent {
   final case class IssueCommentAdded(message: Comment) extends IssueEvent
   final case object IssueResolved extends IssueEvent
 
-  val jsonEncoder: Encoder[IssueEvent] = semiauto.deriveEncoder
-  val jsonDecoder: Decoder[IssueEvent] = semiauto.deriveDecoder
+  implicit val jsonEncoder: Encoder[IssueEvent] = semiauto.deriveEncoder
+  implicit val jsonDecoder: Decoder[IssueEvent] = semiauto.deriveDecoder
 
-  implicit val persistentEncoder: PersistentEncoder[IssueEvent] =
-    jsonEncoder.toPersistenceEncoder
-  implicit val persistentDecoder: PersistentDecoder[IssueEvent] =
-    jsonDecoder.toPersistenceDecoder
+  implicit val persistentSerializer: Serializer[IssueEvent] =
+    JsonPersistence.jsonSerializer[IssueEvent]
 }
 
 final case class IssueState(chatId: ChatId,
@@ -73,7 +74,7 @@ final case class IssueState(chatId: ChatId,
 }
 
 object IssueState {
-  def initial(e: IssueEvent): Folded[IssueState] = e match {
+  def init(e: IssueEvent): Folded[IssueState] = e match {
     case IssueEvent.IssueCreated(chatId, description) =>
       IssueState(chatId, isResolved = false, description, Chain.empty).next
     case _: IssueEvent => impossible
@@ -91,17 +92,43 @@ final class EventSourcedIssue[F[_]: Functor, I[_]](
   import I._
 
   def create(chatId: ChatId, description: Description): I[Unit] = read.flatMap {
-    case Some(x) => reject(IssueRejection.AlreadyExists)
+    case Some(_) => reject(IssueRejection.AlreadyExists)
     case None    => append(IssueCreated(chatId, description))
   }
 
   def markResolved: I[Unit] = read.flatMap {
-    case Some(x) => append(IssueResolved)
-    case None    => reject(IssueRejection.NotExists)
+    case Some(x) if !x.isResolved => append(IssueResolved)
+    case Some(_)                  => I.unit
+    case None                     => reject(IssueRejection.NotExists)
   }
 
   def comment(message: Comment): I[Unit] = read.flatMap {
-    case Some(x) => append(IssueCommentAdded(message))
+    case Some(_) => append(IssueCommentAdded(message))
     case None    => reject(IssueRejection.NotExists)
   }
+}
+
+object EventSourcedIssue {
+
+  def behavior[F[_]: Monad]
+    : EventsourcedBehavior[EitherK[Issue, IssueRejection, ?[_]],
+                           F,
+                           Option[
+                             IssueState
+                           ],
+                           IssueEvent] =
+    EventsourcedBehavior.optionalRejectable(new EventSourcedIssue,
+                                            IssueState.init,
+                                            _.handleEvent(_))
+
+  val entityName: String = "Issue"
+  val entityNameTag: EventTag = EventTag(entityName)
+  val tagging: Tagging[IssueKey] = Tagging.partitioned(20)(entityNameTag)
+
+  implicit val paymentKeyEncoder: KeyEncoder[IssueKey] =
+    KeyEncoder.instance[IssueKey](_.toString)
+
+  implicit val paymentKeyDecoder: KeyDecoder[IssueKey] =
+    KeyDecoder.instance[IssueKey](x =>
+      SyncIO(UUID.fromString(x)).attempt.map(_.toOption).unsafeRunSync())
 }
