@@ -1,5 +1,6 @@
 package com.github.leammas.issue.issuetracker
 
+import aecor.data.EitherK
 import aecor.journal.postgres.PostgresEventJournal
 import aecor.runtime.akkageneric.GenericAkkaRuntime
 import akka.actor.ActorSystem
@@ -30,9 +31,15 @@ object App extends IOApp {
                                           IssueEvent.persistentSerializer)
       notifications = DummyNotifications.stream[IO]
       genericAkkaRuntime = GenericAkkaRuntime(actorSystem)
-      wiring = new Wiring[IO](notifications,
-                              issueJournal,
-                              Wiring.toEventSourcedRuntime(genericAkkaRuntime))
+      wiring = new Wiring[IO](
+        notifications,
+        issueJournal,
+        Wiring.toEventSourcedRuntime[EitherK[Issue, IssueRejection, ?[_]],
+                                     IO,
+                                     Option[IssueState],
+                                     IssueEvent,
+                                     IssueId](genericAkkaRuntime)
+      )
     } yield wiring
 
   def run(args: List[String]): IO[ExitCode] =

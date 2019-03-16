@@ -4,6 +4,7 @@ import cats.effect._
 import doobie.hikari.HikariTransactor
 import doobie.util.ExecutionContexts
 import doobie.util.transactor.Transactor
+import cats.implicits._
 
 import scala.language.higherKinds
 

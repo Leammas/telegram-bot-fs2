@@ -17,7 +17,11 @@ import cats.tagless.autoFunctorK
 import cats.{Functor, Monad}
 import com.github.leammas.issue.common.{ChatId, JsonPersistence}
 import com.github.leammas.issue.issuetracker.Issue._
-import com.github.leammas.issue.issuetracker.IssueEvent.{IssueCommentAdded, IssueCreated, IssueResolved}
+import com.github.leammas.issue.issuetracker.IssueEvent.{
+  IssueCommentAdded,
+  IssueCreated,
+  IssueResolved
+}
 import io.circe.generic.semiauto
 import io.circe.{Decoder, Encoder}
 
@@ -36,9 +40,8 @@ trait Issue[F[_]] {
 object Issue {
   type Description = String
   type Comment = String
-  type IssueKey = UUID
   type Issues[F[_]] =
-    Entities.Rejectable[IssueKey, Issue, F, IssueRejection]
+    Entities.Rejectable[IssueId, Issue, F, IssueRejection]
 }
 
 sealed trait IssueRejection extends Product with Serializable
@@ -123,12 +126,15 @@ object EventSourcedIssue {
 
   val entityName: String = "Issue"
   val entityNameTag: EventTag = EventTag(entityName)
-  val tagging: Tagging[IssueKey] = Tagging.partitioned(20)(entityNameTag)
+  val tagging: Tagging[IssueId] = Tagging.partitioned(20)(entityNameTag)
 
-  implicit val paymentKeyEncoder: KeyEncoder[IssueKey] =
-    KeyEncoder.instance[IssueKey](_.toString)
+  implicit val paymentKeyEncoder: KeyEncoder[IssueId] =
+    KeyEncoder.instance[IssueId](_.toString)
 
-  implicit val paymentKeyDecoder: KeyDecoder[IssueKey] =
-    KeyDecoder.instance[IssueKey](x =>
-      SyncIO(UUID.fromString(x)).attempt.map(_.toOption).unsafeRunSync())
+  implicit val paymentKeyDecoder: KeyDecoder[IssueId] =
+    KeyDecoder.instance[IssueId](
+      x =>
+        SyncIO(UUID.fromString(x)).attempt
+          .map(_.toOption.map(IssueId))
+          .unsafeRunSync())
 }

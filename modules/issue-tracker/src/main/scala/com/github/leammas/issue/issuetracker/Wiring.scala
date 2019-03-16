@@ -6,14 +6,13 @@ import aecor.runtime.akkageneric.GenericAkkaRuntime
 import aecor.runtime.{EventJournal, Eventsourced}
 import cats.effect.{Concurrent, Effect}
 import cats.tagless.FunctorK
-import com.github.leammas.MonadThrowable
 import com.github.leammas.issue.common.ChatId
-import com.github.leammas.issue.issuetracker.Issue.{IssueKey, Issues}
+import com.github.leammas.issue.issuetracker.Issue.Issues
 import com.github.leammas.issue.issuetracker.Wiring.EventsourcedRuntime
 
 final class Wiring[F[_]: Concurrent](
     notifications: fs2.Stream[F, ChatId],
-    journal: EventJournal[F, IssueKey, IssueEvent],
+    journal: EventJournal[F, IssueId, IssueEvent],
     issueRuntime: EventsourcedRuntime[EitherK[Issue, IssueRejection, ?[_]],
                                       F,
                                       Option[IssueState],
@@ -35,6 +34,7 @@ object Wiring {
   type EventsourcedRuntime[M[_[_]], F[_], S, E, K] =
     EventJournal[F, K, E] => EventsourcedBehavior[M, F, S, E] => F[K => M[F]]
 
+  //@todo typename
   def toEventSourcedRuntime[M[_[_]]: FunctorK: WireProtocol,
                             F[_]: Effect,
                             S,
