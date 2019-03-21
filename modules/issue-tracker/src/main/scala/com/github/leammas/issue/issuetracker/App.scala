@@ -2,11 +2,13 @@ package com.github.leammas.issue.issuetracker
 
 import aecor.data.EitherK
 import aecor.journal.postgres.PostgresEventJournal
+import aecor.runtime.Eventsourced
 import aecor.runtime.akkageneric.GenericAkkaRuntime
 import akka.actor.ActorSystem
 import cats.effect._
 import cats.implicits._
 import com.github.leammas.issue.issuetracker.EventSourcedIssue._
+import com.github.leammas.issue.issuetracker.Issue._
 import com.github.leammas.postgres.{Postgres, PostgresConfig}
 import com.typesafe.config.ConfigFactory
 
@@ -26,19 +28,21 @@ object App extends IOApp {
         IO.fromFuture(IO(x.terminate())).void)
       transactor <- Postgres.hikariTransactor[IO](16, config.postgres)
       issueJournal = PostgresEventJournal(transactor,
-                                          "issue_events",
-                                          EventSourcedIssue.tagging,
-                                          IssueEvent.persistentSerializer)
+        "issue_events",
+        EventSourcedIssue.tagging,
+        IssueEvent.persistentSerializer)
       notifications = DummyNotifications.stream[IO]
       genericAkkaRuntime = GenericAkkaRuntime(actorSystem)
+      issues <- Resource.liftF(
+        genericAkkaRuntime
+          .runBehavior[IssueId, EitherK[Issue, IssueRejection, ?[_]], IO](
+          "issues",
+          Eventsourced(EventSourcedIssue.behavior, issueJournal))
+          .map(Eventsourced.Entities.fromEitherK(_)): IO[Issues[IO]
+          ])
       wiring = new Wiring[IO](
         notifications,
-        issueJournal,
-        Wiring.toEventSourcedRuntime[EitherK[Issue, IssueRejection, ?[_]],
-                                     IO,
-                                     Option[IssueState],
-                                     IssueEvent,
-                                     IssueId](genericAkkaRuntime)
+        issues
       )
     } yield wiring
 

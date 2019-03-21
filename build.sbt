@@ -56,6 +56,7 @@ lazy val baseSettings = Seq(
     catsEffect,
     catsMTL
   ) ++ doobie ++ testContainers ++ monocle,
+  scalacOptions += "-Ypartial-unification",
   sources in (Compile, doc) := Nil,
   organization := "ru.pavkin",
   version := "0.0.1-SNAPSHOT",
@@ -77,7 +78,6 @@ lazy val tgbot =
 lazy val issueTracker =
   module("issue-tracker").settings(
     libraryDependencies ++= aecor,
-    scalacOptions += "-Ypartial-unification",
     addCompilerPlugin(
       "org.scalameta" % "paradise" % "3.0.0-M11" cross CrossVersion.full)
   ).dependsOn(common)

@@ -19,6 +19,7 @@ object Postgres {
         config.username,
         config.password // password
       ))
+  /*
 
   def hikariTransactor[F[_]: ContextShift: Async](numFixedThreads: Int, config: PostgresConfig): Resource[F, Transactor[F]] = for {
     ce <- ExecutionContexts.fixedThreadPool[F](32) // our connect EC
@@ -32,7 +33,26 @@ object Postgres {
       te                                      // execute JDBC operations here
     )
   } yield xa
+   */
 
+  def hikariTransactor[F[_]: ContextShift: Async](
+      numFixedThreads: Int,
+      config: PostgresConfig): Resource[F, Transactor[F]] =
+    ExecutionContexts
+      .fixedThreadPool[F](32)
+      .flatMap(
+        ec =>
+          ExecutionContexts
+            .cachedThreadPool[F]
+            .flatMap(ce =>
+              HikariTransactor.newHikariTransactor[F](
+                "org.postgresql.Driver", // fully-qualified driver class name
+                s"jdbc:postgresql://${config.contactPoints}:${config.port}/${config.database}", // connect URL
+                config.username,
+                config.password, // password
+                ce, // await connection here
+                ec // execute JDBC operations here
+            )).widen[Transactor[F]])
 }
 
 final case class PostgresConfig(contactPoints: String,
