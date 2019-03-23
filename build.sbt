@@ -81,3 +81,6 @@ lazy val issueTracker =
     addCompilerPlugin(
       "org.scalameta" % "paradise" % "3.0.0-M11" cross CrossVersion.full)
   ).dependsOn(common)
+
+lazy val tests =
+  module("tests").dependsOn(issueTracker, tgbot)
