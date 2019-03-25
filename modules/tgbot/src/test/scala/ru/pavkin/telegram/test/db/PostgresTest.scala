@@ -5,8 +5,8 @@ import com.dimafeng.testcontainers.{ForAllTestContainer, GenericContainer}
 import doobie.util.transactor.Transactor
 import org.scalatest.Suite
 import org.testcontainers.containers.wait.LogMessageWaitStrategy
-import ru.pavkin.telegram.{Postgres, PostgresConfig}
 import cats.implicits._
+import com.github.leammas.postgres.{Postgres, PostgresConfig}
 
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration._
