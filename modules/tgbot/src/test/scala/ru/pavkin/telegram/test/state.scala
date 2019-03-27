@@ -9,6 +9,7 @@ import monocle.macros.GenLens
 import ru.pavkin.telegram.api.dto.BotUpdate
 import cats.effect.Sync
 import ru.pavkin.telegram.test.statet.HasLens
+import ru.pavkin.telegram.test.statet.RefState.RefState
 import ru.pavkin.telegram.test.statet.SyncIOState.SyncIOState
 import statet.HasLens._
 
@@ -25,7 +26,7 @@ object state {
                    StateAdminNotifier.InnerState(List.empty))
   }
 
-  type ProcessSyncState[T] = SyncIOState[ProcessState, T]
+  type ProcessSyncState[T] = RefState[ProcessState, T]
 
   object StateTodoListStorage {
     final case class InnerState(value: List[Record]) extends AnyVal
@@ -80,5 +81,8 @@ object state {
           FMS.modify(s => s.copy(chatId :: s.value))
       }
   }
+
+
+  //@todo move run here
 
 }

@@ -1,7 +1,7 @@
 package ru.pavkin.telegram.todolist
 
-import cats.Applicative
 import cats.implicits._
+import com.github.leammas.ApplicativeThrowable.ApplicativeThrowable
 
 import scala.language.higherKinds
 
@@ -11,14 +11,31 @@ trait PhraseChecker[F[_]] {
 
 }
 
-final class NaivePhraseChecker[F[_]: Applicative] extends PhraseChecker[F] {
+final class NaivePhraseChecker[F[_]](implicit F: ApplicativeThrowable[F])
+    extends PhraseChecker[F] {
   private val suspiciousWords = Set("kill", "steal")
 
-  def isSuspicious(item: Item): F[Boolean] =
-    item
+  private val panicWords = Set("goroutine")
+
+  def isSuspicious(item: Item): F[Boolean] = {
+    val words = item
       .split(" ")
       .toList
-      .map(w => suspiciousWords.contains(w))
-      .exists(identity)
-      .pure[F]
+
+    val preprocessedSuccessfully =
+      if (words.map(w => panicWords.contains(w)).exists(identity)) {
+        F.raiseError[Boolean](new IllegalStateException("Something just wrong"))
+      } else {
+        true.pure[F]
+      }
+
+    val isSuspicious =
+      words
+        .map(w => suspiciousWords.contains(w))
+        .exists(identity)
+        .pure[F]
+
+    (preprocessedSuccessfully, isSuspicious).mapN(_ && _)
+  }
+
 }

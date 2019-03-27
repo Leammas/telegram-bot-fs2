@@ -17,6 +17,7 @@ val testContainers = Seq(
   "org.testcontainers" % "postgresql" % "1.6.0" % Test
 )
 val catsMTL = "org.typelevel" %% "cats-mtl-core" % "0.2.3" % Test
+val catsTagless = "org.typelevel" %% "cats-tagless-macros" % "0.2.0"
 val typesafeConfig = "com.typesafe" % "config" % "1.3.2"
 val pureconfig = "com.github.pureconfig" %% "pureconfig" % "0.9.0"
 val monocleVersion = "1.5.1-cats"
@@ -54,13 +55,16 @@ lazy val baseSettings = Seq(
     typesafeConfig,
     pureconfig,
     catsEffect,
-    catsMTL
+    catsMTL,
+    catsTagless
   ) ++ doobie ++ testContainers ++ monocle,
   scalacOptions += "-Ypartial-unification",
   sources in (Compile, doc) := Nil,
   organization := "ru.pavkin",
   version := "0.0.1-SNAPSHOT",
   scalaVersion := "2.12.8",
+  addCompilerPlugin(
+    "org.scalameta" % "paradise" % "3.0.0-M11" cross CrossVersion.full)
 )
 
 def module(name: String): Project =
@@ -77,9 +81,7 @@ lazy val tgbot =
 
 lazy val issueTracker =
   module("issue-tracker").settings(
-    libraryDependencies ++= aecor,
-    addCompilerPlugin(
-      "org.scalameta" % "paradise" % "3.0.0-M11" cross CrossVersion.full)
+    libraryDependencies ++= aecor
   ).dependsOn(common)
 
 lazy val tests =
