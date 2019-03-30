@@ -1,4 +1,4 @@
-package ru.pavkin.telegram.test.statet
+package com.github.leammas.testkit.statet
 
 import monocle.Lens
 

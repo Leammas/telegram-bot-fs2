@@ -6,9 +6,16 @@ import com.github.leammas.issue.common.ChatId
 import scala.language.higherKinds
 import scala.util.Random
 
+trait Notifications[F[_]] {
+  def events: fs2.Stream[F, ChatId]
+}
+
 object DummyNotifications {
 
-  def stream[F[_]](implicit F: Sync[F]): fs2.Stream[F, ChatId] =
-    fs2.Stream.repeatEval(F.delay(Random.nextLong()))
+  def apply[F[_]](implicit F: Sync[F]): Notifications[F] =
+    new Notifications[F] {
+      def events: fs2.Stream[F, ChatId] =
+        fs2.Stream.repeatEval(F.delay(Random.nextLong()))
 
+    }
 }

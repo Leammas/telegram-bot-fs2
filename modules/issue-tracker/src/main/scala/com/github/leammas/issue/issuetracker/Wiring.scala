@@ -4,7 +4,7 @@ import cats.effect.Concurrent
 import com.github.leammas.issue.common.ChatId
 import com.github.leammas.issue.issuetracker.Issue.Issues
 
-final class Wiring[F[_]: Concurrent](notifications: fs2.Stream[F, ChatId],
+final class Wiring[F[_]: Concurrent](notifications: Notifications[F],
                                      issues: Issues[F]) {
 
   val issueCreationProcessStep = new IssueCreationProcessStep[F](issues)

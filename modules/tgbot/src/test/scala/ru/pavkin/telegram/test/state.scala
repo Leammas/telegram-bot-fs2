@@ -8,10 +8,9 @@ import cats.mtl.MonadState
 import monocle.macros.GenLens
 import ru.pavkin.telegram.api.dto.BotUpdate
 import cats.effect.Sync
-import ru.pavkin.telegram.test.statet.HasLens
-import ru.pavkin.telegram.test.statet.RefState.RefState
-import ru.pavkin.telegram.test.statet.SyncIOState.SyncIOState
-import statet.HasLens._
+import com.github.leammas.testkit.statet.HasLens
+import com.github.leammas.testkit.statet.RefState.RefState
+import com.github.leammas.testkit.statet.HasLens._
 
 object state {
 
@@ -81,8 +80,5 @@ object state {
           FMS.modify(s => s.copy(chatId :: s.value))
       }
   }
-
-
-  //@todo move run here
 
 }

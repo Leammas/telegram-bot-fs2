@@ -31,7 +31,7 @@ object App extends IOApp {
         "issue_events",
         EventSourcedIssue.tagging,
         IssueEvent.persistentSerializer)
-      notifications = DummyNotifications.stream[IO]
+      notifications = DummyNotifications[IO]
       genericAkkaRuntime = GenericAkkaRuntime(actorSystem)
       issues <- Resource.liftF(
         genericAkkaRuntime

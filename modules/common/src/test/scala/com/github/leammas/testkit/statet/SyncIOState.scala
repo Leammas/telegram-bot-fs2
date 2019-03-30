@@ -1,10 +1,10 @@
-package ru.pavkin.telegram.test.statet
+package com.github.leammas.testkit.statet
 
-import cats.{Monad, Parallel}
 import cats.data.{IndexedStateT, StateT}
 import cats.effect.SyncIO
 import cats.effect.concurrent.Ref
 import cats.mtl.MonadState
+import cats.{Monad, Parallel}
 
 trait SyncIOStateTOps {
   def pure[S, T](v: T): StateT[SyncIO, S, T] = StateT.pure(v)
@@ -40,6 +40,8 @@ object RefState {
   }
 
   //@todo randomize
+  //override def product[A, B](fa: F[A], fb: F[B]): F[(A, B)] =
+  //    ap(map(fa)(a => (b: B) => (a, b)))(fb)
   implicit def parallel[S]: Parallel[RefState[S, ?], RefState[S, ?]] =
     Parallel.identity[RefState[S, ?]]
 }

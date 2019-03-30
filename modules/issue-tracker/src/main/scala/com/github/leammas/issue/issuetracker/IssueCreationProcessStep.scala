@@ -11,10 +11,10 @@ import com.github.leammas.issue.issuetracker.Issue.Issues
 import scala.language.higherKinds
 
 final class IssueCreationProcess[F[_]: Concurrent](
-    notifications: fs2.Stream[F, ChatId],
+    notifications: Notifications[F],
     step: IssueCreationProcessStep[F])(implicit F: MonadError[F, Throwable]) {
   def run: F[Unit] =
-    notifications.mapAsync(8)(step.processNotification).compile.drain
+    notifications.events.mapAsync(8)(step.processNotification).compile.drain
 }
 
 final class IssueCreationProcessStep[F[_]](issues: Issues[F])(

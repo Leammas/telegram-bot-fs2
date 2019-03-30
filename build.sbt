@@ -4,26 +4,26 @@ val slf4jVersion = "1.7.25"
 val kindProjectorVersion = "0.9.6"
 val circeVersion = "0.9.2"
 val scalaCheck = "org.scalacheck" %% "scalacheck" % "1.13.4" % Test
-val scalaTest = "org.scalatest" %% "scalatest" % "3.0.3" % Test
+val scalaTest = "org.scalatest" %% "scalatest" % "3.0.3"
 val magnolia = "com.propensive" %% "magnolia" % "0.6.1" % Test
 val doobieVersion = "0.6.0"
 val doobie = Seq(
   "org.tpolecat" %% "doobie-core" % doobieVersion,
   "org.tpolecat" %% "doobie-postgres" % doobieVersion,
-  "org.tpolecat" %% "doobie-hikari"    % doobieVersion
+  "org.tpolecat" %% "doobie-hikari" % doobieVersion
 )
 val testContainers = Seq(
   "com.dimafeng" %% "testcontainers-scala" % "0.14.0" % Test,
   "org.testcontainers" % "postgresql" % "1.6.0" % Test
 )
-val catsMTL = "org.typelevel" %% "cats-mtl-core" % "0.2.3" % Test
+val catsMTL = "org.typelevel" %% "cats-mtl-core" % "0.2.3"
 val catsTagless = "org.typelevel" %% "cats-tagless-macros" % "0.2.0"
 val typesafeConfig = "com.typesafe" % "config" % "1.3.2"
 val pureconfig = "com.github.pureconfig" %% "pureconfig" % "0.9.0"
 val monocleVersion = "1.5.1-cats"
 val monocle = Seq(
-  "com.github.julien-truffaut" %% "monocle-core" % monocleVersion % Test,
-  "com.github.julien-truffaut" %% "monocle-macro" % monocleVersion % Test
+  "com.github.julien-truffaut" %% "monocle-core" % monocleVersion,
+  "com.github.julien-truffaut" %% "monocle-macro" % monocleVersion
 )
 val catsEffect = "org.typelevel" %% "cats-effect" % "1.0.0"
 
@@ -76,13 +76,17 @@ def module(name: String): Project =
 lazy val common =
   module("common")
 
+val commonFullDep = common % "test->test;compile->compile"
+
 lazy val tgbot =
-  module("tgbot").dependsOn(common)
+  module("tgbot").dependsOn(commonFullDep )
 
 lazy val issueTracker =
-  module("issue-tracker").settings(
-    libraryDependencies ++= aecor
-  ).dependsOn(common)
+  module("issue-tracker")
+    .settings(
+      libraryDependencies ++= aecor
+    )
+    .dependsOn(commonFullDep)
 
 lazy val tests =
-  module("tests").dependsOn(issueTracker, tgbot)
+  module("tests").dependsOn(commonFullDep, issueTracker % "test->test", tgbot % "test->test")
