@@ -1,9 +1,8 @@
 package com.github.leammas.testkit.statet
 
-import cats.Monad
-import cats.effect.concurrent.Ref
 import cats.implicits._
-import cats.mtl.MonadState
+import cats.mtl.{ApplicativeAsk, MonadState}
+import cats.{Applicative, Monad}
 
 trait MonadStateTransform {
   implicit def transformMS[F[_], S, A](implicit FMS: MonadState[F, S],
@@ -23,25 +22,18 @@ trait MonadStateTransform {
       def inspect[C](f: A => C): F[C] =
         FMS.get.map(s => f(L.lens.get(s)))
     }
-
-  implicit def transformMRefS[F[_], S, A](implicit FMS: MonadState[F, Ref[F, S]],
-                                       L: HasLens[S, A]): MonadState[F, A] =
-    new MonadState[F, A] {
-      implicit val monad: Monad[F] = FMS.monad
-
-      def get: F[A] =
-        FMS.get.flatMap(rs => rs.get.map(L.lens.get))
-
-      def set(a: A): F[Unit] =
-        FMS.get.flatMap(s => s.update(L.lens.set(a)(_)))
-
-      def modify(f: A => A): F[Unit] =
-        FMS.get.flatMap(s => s.update(L.lens.modify(f)(_)))
-
-      def inspect[C](f: A => C): F[C] =
-        FMS.get.flatMap(s => s.get.map(x => f(L.lens.get(x))))
-    }
 }
 
 object MonadStateTransform extends MonadStateTransform
 
+trait ReaderTransform {
+  implicit def transform[F[_]: Applicative, S, A](implicit AA: ApplicativeAsk[F, S], L: HasLens[S, A]): ApplicativeAsk[F, A] = new ApplicativeAsk[F, A] {
+    val applicative: Applicative[F] = AA.applicative
+
+    def ask: F[A] = AA.ask.map(L.lens.get(_))
+
+    def reader[B](f: A => B): F[B] = AA.reader(s => f(L.lens.get(s)))
+  }
+}
+
+object ReaderTransform extends ReaderTransform

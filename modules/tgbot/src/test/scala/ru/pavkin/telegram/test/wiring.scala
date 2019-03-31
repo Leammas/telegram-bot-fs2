@@ -1,15 +1,17 @@
 package ru.pavkin.telegram.test
 
-//import cats.mtl.instances.state._
-import cats.effect.SyncIO
-import cats.effect.concurrent.Ref
+import cats.effect.{ContextShift, IO}
+import cats.mtl.instances.readert._
+import cats.mtl.instances.ask._
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 import com.github.leammas.testkit.statet.MonadStateTransform._
 import ru.pavkin.telegram.test.state._
 import ru.pavkin.telegram.todolist._
-import com.github.leammas.testkit.statet.RefState._
 
 object wiring {
+
+  implicit val shift: ContextShift[IO] =
+    cats.effect.internals.IOContextShift.global
 
   val storage = StateTodoListStorage[ProcessSyncState]
 
@@ -28,10 +30,12 @@ object wiring {
   .runS(state)
   .unsafeRunSync()*/
 
-  def runTestApp(state: ProcessState): ProcessState = Ref.of[SyncIO, ProcessState](state).flatMap { refState =>
+  def runTestApp(
+      state: ProcessState[IO]): ProcessState[IO] =
     bot
       .flatMap(_.launch.compile.drain)
-      .runS(refState).handleErrorWith(_ => SyncIO.pure(refState)).flatMap(_.get)
-  }.unsafeRunSync()
+      .run(state)
+      .redeem(_ => state, _ => state)
+      .unsafeRunSync()
 
 }
