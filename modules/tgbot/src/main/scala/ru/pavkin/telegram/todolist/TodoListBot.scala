@@ -73,6 +73,7 @@ class TodoListBot[F[_]](api: StreamingBotAPI[F],
     for {
       _ <- storage.addItem(chatId, item)
       isPhraseSuspicious <- phraseChecker.isSuspicious(item)
+      _ = println(isPhraseSuspicious)
       _ <- if (isPhraseSuspicious) adminNotifier.notify(chatId) else ().pure[F]
       response <- F.suspend(
         F.catchNonFatal(

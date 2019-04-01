@@ -8,7 +8,7 @@ import cats.implicits._
 import cats.mtl.ApplicativeAsk
 import com.github.leammas.testkit.statet.HasLens
 import com.github.leammas.testkit.statet.HasLens._
-import fs2.concurrent.Queue
+import fs2.concurrent.{InspectableQueue, Queue}
 import monocle.macros.GenLens
 import ru.pavkin.telegram.api.dto.BotUpdate
 import ru.pavkin.telegram.api.{ChatId, Offset, StreamingBotAPI}
@@ -18,80 +18,86 @@ import ru.pavkin.telegram.todolist.{AdminNotifier, Item, TodoListStorage}
 object state {
 
   //@todo autolens
-  final case class ProcessState[F[_]](
-      records: StateTodoListStorage.InnerState[F],
-      chatMessages: StateBotApi.InnerState[F],
-      notifications: StateAdminNotifier.InnerState[F])
+  final case class ProcessState(records: StateTodoListStorage.InnerState,
+                                chatMessages: StateBotApi.InnerState,
+                                notifications: StateAdminNotifier.InnerState)
 
   object ProcessState {
-    def empty[F[_]: Concurrent]: F[ProcessState[F]] =
-      for {
+    private implicit val shift: ContextShift[IO] =
+      cats.effect.internals.IOContextShift.global
+
+    def init(records: List[Record] = List.empty,
+             outgoingMessages: List[(ChatId, String)] = List.empty,
+             incomingMessages: List[BotUpdate] = List.empty): ProcessState = {
+
+      (for {
         tds <- Ref
-          .of[F, List[Record]](List.empty)
-          .map(StateTodoListStorage.InnerState(_))
-        bao <- Ref.of[F, List[(ChatId, String)]](List.empty)
-        bai <- Ref.of[F, List[BotUpdate]](List.empty)
-        an <- Queue.unbounded[F, ChatId].map(StateAdminNotifier.InnerState(_))
-      } yield ProcessState(tds, StateBotApi.InnerState(bai, bao), an)
+          .of[IO, List[Record]](records)
+          .map(StateTodoListStorage.InnerState)
+        bao <- Ref.of[IO, List[(ChatId, String)]](outgoingMessages)
+        bai <- Ref.of[IO, List[BotUpdate]](incomingMessages)
+        an <- InspectableQueue.unbounded[IO, ChatId].map(StateAdminNotifier.InnerState)
+      } yield
+        ProcessState(tds, StateBotApi.InnerState(bai, bao), an)).unsafeRunSync()
+    }
   }
 
-  type ProcessSyncState[T] = ReaderT[IO, ProcessState[IO], T]
+  type ProcessSyncState[T] = ReaderT[IO, ProcessState, T]
 
   object StateTodoListStorage {
-    final case class InnerState[F[_]](value: Ref[F, List[Record]])
-        extends AnyVal
+    final case class InnerState(value: Ref[IO, List[Record]]) extends AnyVal
 
-    implicit def lens[F[_]]: HasLens[ProcessState[F], InnerState[F]] =
-      GenLens[ProcessState[F]](_.records).toHasLens
+    implicit def lens: HasLens[ProcessState, InnerState] =
+      GenLens[ProcessState](_.records).toHasLens
 
-    def apply[F[_]: Monad](
-        implicit AA: ApplicativeAsk[F, InnerState[F]]
+    def apply[F[_]: Monad: LiftIO](
+        implicit AA: ApplicativeAsk[F, InnerState]
     ): TodoListStorage[F] = new TodoListStorage[F] {
       def addItem(chatId: ChatId, item: Item): F[Unit] =
-        AA.ask.flatMap(_.value.update(s => Record(chatId, item) :: s.value))
+        AA.ask.flatMap(
+          _.value.update(s => Record(chatId, item) :: s.value).to[F])
 
       def getItems(chatId: ChatId): F[List[Item]] =
         AA.ask.flatMap(
-          _.value.get.map(_.filter(_.chatId == chatId).map(_.item)))
+          _.value.get.to[F].map(_.filter(_.chatId == chatId).map(_.item)))
 
       def clearList(chatId: ChatId): F[Unit] =
-        AA.ask.flatMap(_.value.update(s =>
-          s.value.filterNot(_.chatId == chatId)))
+        AA.ask.flatMap(
+          _.value.update(s => s.value.filterNot(_.chatId == chatId)).to[F])
     }
   }
 
   object StateBotApi {
-    final case class InnerState[F[_]](incoming: Ref[F, List[BotUpdate]],
-                                      outgoing: Ref[F, List[(ChatId, String)]])
+    final case class InnerState(incoming: Ref[IO, List[BotUpdate]],
+                                outgoing: Ref[IO, List[(ChatId, String)]])
 
-    implicit def lens[F[_]]: HasLens[ProcessState[F], InnerState[F]] =
-      GenLens[ProcessState[F]](_.chatMessages).toHasLens
+    implicit def lens: HasLens[ProcessState, InnerState] =
+      GenLens[ProcessState](_.chatMessages).toHasLens
 
-    def apply[F[_]: Sync](
-        implicit AA: ApplicativeAsk[F, InnerState[F]]
+    def apply[F[_]: Sync: LiftIO](
+        implicit AA: ApplicativeAsk[F, InnerState]
     ): StreamingBotAPI[F] = new StreamingBotAPI[F] {
       def sendMessage(chatId: ChatId, message: String): F[Unit] =
-        AA.ask.flatMap(_.outgoing.update(s => (chatId, message) :: s))
+        AA.ask.flatMap(_.outgoing.update(s => (chatId, message) :: s).to[F])
 
       def pollUpdates(fromOffset: Offset): fs2.Stream[F, BotUpdate] =
         fs2.Stream
-          .eval(AA.ask.flatMap(_.incoming.get))
+          .eval(AA.ask.flatMap(_.incoming.get.to[F]))
           .flatMap(l => fs2.Stream.fromIterator[F, BotUpdate](l.iterator))
     }
   }
 
   object StateAdminNotifier {
-    import cats.implicits._
-    final case class InnerState[F[_]](q: Queue[F, ChatId]) extends AnyVal
+    final case class InnerState(q: InspectableQueue[IO, ChatId]) extends AnyVal
 
-    implicit def lens[F[_]]: HasLens[ProcessState[F], InnerState[F]] =
-      GenLens[ProcessState[F]](_.notifications).toHasLens
+    implicit def lens: HasLens[ProcessState, InnerState] =
+      GenLens[ProcessState](_.notifications).toHasLens
 
-    def apply[F[_]: Monad](
-        implicit AA: ApplicativeAsk[F, InnerState[F]]): AdminNotifier[F] =
+    def apply[F[_]: Monad: LiftIO](
+        implicit AA: ApplicativeAsk[F, InnerState]): AdminNotifier[F] =
       new AdminNotifier[F] {
         def notify(chatId: ChatId): F[Unit] =
-          AA.ask.flatMap(_.q.enqueue1(chatId))
+          AA.ask.flatMap(_.q.enqueue1(chatId).to[F])
       }
   }
 

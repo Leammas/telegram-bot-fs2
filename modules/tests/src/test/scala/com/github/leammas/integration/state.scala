@@ -6,7 +6,6 @@ import cats.mtl.MonadState
 import com.github.leammas.issue.common.ChatId
 import com.github.leammas.issue.issuetracker.Notifications
 import com.github.leammas.testkit.statet.HasLens
-import com.github.leammas.testkit.statet.RefState.RefState
 import fs2.concurrent.Queue
 import monocle.macros.GenLens
 import ru.pavkin.telegram.todolist.AdminNotifier

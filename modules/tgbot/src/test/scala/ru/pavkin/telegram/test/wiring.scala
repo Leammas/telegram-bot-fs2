@@ -1,17 +1,34 @@
 package ru.pavkin.telegram.test
 
+import cats.Applicative
+import cats.data.ReaderT
 import cats.effect.{ContextShift, IO}
-import cats.mtl.instances.readert._
-import cats.mtl.instances.ask._
+import cats.mtl.ApplicativeAsk
+
+import com.github.leammas.testkit.statet.ReaderTransform._
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
-import com.github.leammas.testkit.statet.MonadStateTransform._
-import ru.pavkin.telegram.test.state._
+import ru.pavkin.telegram.test.state.{StateTodoListStorage, _}
 import ru.pavkin.telegram.todolist._
 
 object wiring {
 
-  implicit val shift: ContextShift[IO] =
+  private implicit val shift: ContextShift[IO] =
     cats.effect.internals.IOContextShift.global
+
+  implicit val aa = new ApplicativeAsk[ProcessSyncState, ProcessState] {
+    val applicative: Applicative[ProcessSyncState] =
+      implicitly[Applicative[ProcessSyncState]]
+
+    def ask: ProcessSyncState[ProcessState] =
+      ReaderT[IO, ProcessState, ProcessState] { x =>
+        IO.pure(x)
+      }
+
+    def reader[A](f: ProcessState => A): ProcessSyncState[A] =
+      ReaderT[IO, ProcessState, A] { x =>
+        IO.pure(f(x))
+      }
+  }
 
   val storage = StateTodoListStorage[ProcessSyncState]
 
@@ -25,17 +42,12 @@ object wiring {
     new TodoListBot(botApi, storage, phraseChecker, notifier, _)
   }
 
-  /*private def run(state: ProcessState) = bot
-  .flatMap(_.launch.compile.drain)
-  .runS(state)
-  .unsafeRunSync()*/
-
-  def runTestApp(
-      state: ProcessState[IO]): ProcessState[IO] =
+  def runTestApp(state: ProcessState): ProcessState = {
     bot
       .flatMap(_.launch.compile.drain)
       .run(state)
       .redeem(_ => state, _ => state)
       .unsafeRunSync()
+  }
 
 }
