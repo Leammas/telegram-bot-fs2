@@ -20,7 +20,16 @@ object state {
   //@todo autolens
   final case class ProcessState(records: StateTodoListStorage.InnerState,
                                 chatMessages: StateBotApi.InnerState,
-                                notifications: StateAdminNotifier.InnerState)
+                                notifications: StateAdminNotifier.InnerState) {
+    def isEmpty =
+      records.value.get
+        .unsafeRunSync()
+        .isEmpty && chatMessages.incoming.get
+        .unsafeRunSync()
+        .isEmpty && chatMessages.outgoing.get
+        .unsafeRunSync()
+        .isEmpty && notifications.q.getSize.unsafeRunSync() === 0
+  }
 
   object ProcessState {
     private implicit val shift: ContextShift[IO] =
@@ -36,7 +45,9 @@ object state {
           .map(StateTodoListStorage.InnerState)
         bao <- Ref.of[IO, List[(ChatId, String)]](outgoingMessages)
         bai <- Ref.of[IO, List[BotUpdate]](incomingMessages)
-        an <- InspectableQueue.unbounded[IO, ChatId].map(StateAdminNotifier.InnerState)
+        an <- InspectableQueue
+          .unbounded[IO, ChatId]
+          .map(StateAdminNotifier.InnerState)
       } yield
         ProcessState(tds, StateBotApi.InnerState(bai, bao), an)).unsafeRunSync()
     }

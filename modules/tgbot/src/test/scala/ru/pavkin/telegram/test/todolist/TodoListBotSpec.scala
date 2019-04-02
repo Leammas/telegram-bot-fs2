@@ -7,13 +7,14 @@ import ru.pavkin.telegram.api.dto.{BotMessage, BotUpdate, Chat}
 import ru.pavkin.telegram.test.state.ProcessState
 import ru.pavkin.telegram.test.wiring._
 import ru.pavkin.telegram.todolist.PostgresTodoListStorage.Record
+import com.github.leammas.testkit.syntax._
 
 class TodoListBotSpec extends FlatSpec with Matchers {
 
   it should "do nothing when idle" in {
     val resultState = runTestApp(ProcessState.init())
 
-    resultState shouldEqual ProcessState.init()
+    resultState.isEmpty should be(true)
   }
 
   it should "call notify if phrase is suspicious" in {
@@ -24,11 +25,7 @@ class TodoListBotSpec extends FlatSpec with Matchers {
       ProcessState.init(incomingMessages =
         List(BotUpdate(1, BotMessage(1, Chat(chatId), item.some).some))))
 
-    //@note usual streamed queue, can not force stop, hard to debug, InspectableQueue?
-    resultState.notifications.q.dequeue
-      .take(1)
-      .compile
-      .toList
+    resultState.notifications.q.dequeueCurrent
       .unsafeRunSync()
       .head shouldEqual chatId
     resultState.records.value.get.unsafeRunSync().head shouldEqual Record(
