@@ -2,7 +2,7 @@ package ru.pavkin.telegram.test
 
 import cats.Applicative
 import cats.data.ReaderT
-import cats.effect.{ContextShift, IO}
+import cats.effect.IO
 import cats.mtl.ApplicativeAsk
 
 import com.github.leammas.testkit.statet.ReaderTransform._
@@ -12,10 +12,7 @@ import ru.pavkin.telegram.todolist._
 
 object wiring {
 
-  private implicit val shift: ContextShift[IO] =
-    cats.effect.internals.IOContextShift.global
-
-  implicit val aa = new ApplicativeAsk[ProcessSyncState, ProcessState] {
+  implicit val aa: ApplicativeAsk[ProcessSyncState, ProcessState] = new ApplicativeAsk[ProcessSyncState, ProcessState] {
     val applicative: Applicative[ProcessSyncState] =
       implicitly[Applicative[ProcessSyncState]]
 
