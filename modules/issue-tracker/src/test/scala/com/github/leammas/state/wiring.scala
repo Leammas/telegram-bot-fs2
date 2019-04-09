@@ -57,6 +57,6 @@ object wiring {
     GenLens[ProcessState](_.issues).toHasLens
 
   val issues: Issues[ProcessSyncState] =
-    RefRuntime.apply[ProcessSyncState, IssueId](EventSourcedIssue.behavior)
+    RefRuntime[ProcessSyncState, IssueId](EventSourcedIssue.behavior)
 
 }

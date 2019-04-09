@@ -53,6 +53,7 @@ object state {
     }
   }
 
+  //@todo not sync not state lol
   type ProcessSyncState[T] = ReaderT[IO, ProcessState, T]
 
   object StateTodoListStorage {
