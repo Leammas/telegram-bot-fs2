@@ -8,7 +8,7 @@ import cats.implicits._
 import cats.mtl.ApplicativeAsk
 import com.github.leammas.testkit.statet.HasLens
 import com.github.leammas.testkit.statet.HasLens._
-import fs2.concurrent.{InspectableQueue, Queue}
+import fs2.concurrent.{InspectableQueue}
 import monocle.macros.GenLens
 import ru.pavkin.telegram.api.dto.BotUpdate
 import ru.pavkin.telegram.api.{ChatId, Offset, StreamingBotAPI}

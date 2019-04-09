@@ -2,19 +2,19 @@ package com.github.leammas.issue.issuetracker
 
 import java.util.UUID
 
+import cats.effect.Sync
 import cats.MonadError
-import cats.effect.Concurrent
 import cats.implicits._
 import com.github.leammas.issue.common.ChatId
 import com.github.leammas.issue.issuetracker.Issue.Issues
 
 import scala.language.higherKinds
 
-final class IssueCreationProcess[F[_]: Concurrent](
+final class IssueCreationProcess[F[_]: Sync](
     notifications: Notifications[F],
     step: IssueCreationProcessStep[F])(implicit F: MonadError[F, Throwable]) {
   def run: F[Unit] =
-    notifications.events.mapAsync(8)(step.processNotification).compile.drain
+    notifications.events.map(step.processNotification).compile.drain
 }
 
 final class IssueCreationProcessStep[F[_]](issues: Issues[F])(

@@ -1,17 +1,25 @@
 package com.github.leammas.integration
 
+import aecor.runtime.Eventsourced.Entities
 import cats.data.ReaderT
 import cats.effect.{IO, LiftIO}
 import cats.mtl.ApplicativeAsk
 import cats.{Monad, ~>}
-import com.github.leammas.issue.issuetracker.{IssueId, Notifications}
+import com.github.leammas.issue.issuetracker.{
+  Issue,
+  IssueId,
+  IssueRejection,
+  Notifications
+}
 import com.github.leammas.testkit.statet.HasLens
 import com.github.leammas.testkit.statet.HasLens._
-import fs2.concurrent.InspectableQueue
 import monocle.macros.GenLens
 import ru.pavkin.telegram.api.ChatId
 import cats.implicits._
 import com.github.leammas.testkit.statet.ReaderTransform._
+import cats.tagless.syntax.functorK._
+import scala.concurrent.ExecutionContext.Implicits.global
+import cats.mtl.implicits._
 
 object state {
 
@@ -24,17 +32,17 @@ object state {
   type IntegrationSyncState[T] = ReaderT[IO, IntegrationState, T]
 
   val tgbotTransform =
-    new ~>[ReaderT[IO, TgBotState, ?], ReaderT[IO, TgBotState, ?]] {
+    new ~>[ReaderT[IO, TgBotState, ?], ReaderT[IO, IntegrationState, ?]] {
       def apply[A](
           fa: ReaderT[IO, TgBotState, A]): ReaderT[IO, IntegrationState, A] =
-        ReaderT[IO, IntegrationState, A](is => fa.run(is.bot))
+        fa.local(_.bot)
     }
 
   val issueTransform =
     new ~>[ReaderT[IO, IssueState, ?], ReaderT[IO, IntegrationState, ?]] {
       def apply[A](
           fa: ReaderT[IO, IssueState, A]): ReaderT[IO, IntegrationState, A] =
-        ReaderT[IO, IntegrationState, A](is => fa.run(is.bot))
+        fa.local(_.issue)
     }
 
   def liftIO[F[_]](implicit LiftF: LiftIO[F]): ~>[IO, F] = new ~>[IO, F] {
@@ -42,35 +50,53 @@ object state {
   }
 
   object StateNotifications {
-    final case class InnerState(q: InspectableQueue[IO, ChatId]) extends AnyVal
+    type BorrowedState =
+      ru.pavkin.telegram.test.state.StateAdminNotifier.InnerState
 
-    implicit def lens: HasLens[IntegrationState, InnerState] =
+    implicit def lens: HasLens[IntegrationState, BorrowedState] =
       GenLens[IntegrationState](_.bot.notifications).toHasLens
 
     def apply[F[_]: Monad: LiftIO](
-                                    implicit AA: ApplicativeAsk[F, InnerState]): Notifications[F] =
+        implicit AA: ApplicativeAsk[F, BorrowedState]): Notifications[F] =
       new Notifications[F] {
         def events: fs2.Stream[F, ChatId] =
           fs2.Stream.eval(AA.ask).flatMap(_.q.dequeue.translate(liftIO))
       }
   }
 
+  import StateNotifications._
+
   val botApp = ru.pavkin.telegram.test.wiring.bot
 
-  val issues = (k: IssueId) => com.github.leammas.state.wiring.issues(k).mapK(issueTransform)
+  type IssueType[T] =
+    com.github.leammas.state.wiring.ProcessSyncState[Either[IssueRejection, T]]
+
+  type IssueIntegrationType[T] = IntegrationSyncState[Either[IssueRejection, T]]
+
+  val issueAggregateTransform = new ~>[IssueType, IssueIntegrationType] {
+    def apply[A](fa: IssueType[A]): IssueIntegrationType[A] = fa.local(_.issue)
+  }
+
+  val issues: Issue.Issues[IntegrationSyncState] = {
+    val innerIssues: IssueId => Issue[IssueType] = (k: IssueId) =>
+      com.github.leammas.state.wiring.issues(k)
+    Entities(innerIssues.andThen(_.mapK(issueAggregateTransform)))
+  }
 
   val issueWiring =
     new com.github.leammas.issue.issuetracker.Wiring[IntegrationSyncState](
       StateNotifications[IntegrationSyncState],
-      issues )
+      issues)
 
-  val botWiring = tgbotTransform(botApp).flatMap(x => x.mapK(tgbotTransform))
+  val runningBot: IntegrationSyncState[Unit] =
+    tgbotTransform(botApp).flatMap(x =>
+      x.launch.translate(tgbotTransform).compile.drain)
+
+  val runningIssues = issueWiring.issueCreationProcess.run
 
   def runTestApp(state: IntegrationState): IntegrationState = {
-    val runningIssues = issueWiring.issueCreationProcess.run
 
-    val runningBot = botWiring .flatMap(_.launch.compile.drain)
-
+    (runningIssues, runningBot).parMapN((_, _) => ())
   }
 
 }

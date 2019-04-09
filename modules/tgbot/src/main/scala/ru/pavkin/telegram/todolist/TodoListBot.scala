@@ -3,7 +3,6 @@ package ru.pavkin.telegram.todolist
 import _root_.io.chrisdavenport.log4cats._
 import cats.effect.Sync
 import cats.implicits._
-import cats.tagless.autoFunctorK
 import fs2._
 import ru.pavkin.telegram.api._
 import ru.pavkin.telegram.todolist.BotCommand._
@@ -19,7 +18,6 @@ import scala.util.Random
   * @param storage storage algebra for todo-list items
   * @param logger  logger algebra
   */
-@autoFunctorK(false)
 class TodoListBot[F[_]](api: StreamingBotAPI[F],
                         storage: TodoListStorage[F],
                         phraseChecker: PhraseChecker[F],
