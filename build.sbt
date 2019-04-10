@@ -16,8 +16,8 @@ val testContainers = Seq(
   "com.dimafeng" %% "testcontainers-scala" % "0.14.0" % Test,
   "org.testcontainers" % "postgresql" % "1.6.0" % Test
 )
-val catsMTL = "org.typelevel" %% "cats-mtl-core" % "0.2.3"
-val catsTagless = "org.typelevel" %% "cats-tagless-macros" % "0.2.0"
+val catsMTL = "org.typelevel" %% "cats-mtl-core" % "0.4.0"
+val catsTagless = "org.typelevel" %% "cats-tagless-macros" % "0.5"
 val typesafeConfig = "com.typesafe" % "config" % "1.3.2"
 val pureconfig = "com.github.pureconfig" %% "pureconfig" % "0.9.0"
 val monocleVersion = "1.5.1-cats"

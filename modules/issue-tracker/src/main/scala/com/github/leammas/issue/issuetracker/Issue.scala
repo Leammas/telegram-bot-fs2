@@ -3,10 +3,10 @@ package com.github.leammas.issue.issuetracker
 import aecor.macros.boopickleWireProtocol
 import aecor.runtime.Eventsourced.Entities
 import boopickle.Default._
-import cats.tagless.autoFunctorK
 import com.github.leammas.issue.common.ChatId
 import com.github.leammas.issue.issuetracker.Issue._
 import aecor.macros.boopickle.BoopickleCodec._
+import cats.tagless.{Derive, FunctorK}
 import scodec.Codec
 
 import scala.language.higherKinds
@@ -14,7 +14,6 @@ import scala.language.higherKinds
 final case class IssueId(value: java.util.UUID) extends AnyVal
 
 @boopickleWireProtocol
-@autoFunctorK(false)
 trait Issue[F[_]] {
   def create(chatId: ChatId, description: Description): F[Unit]
   def markResolved: F[Unit]
@@ -26,6 +25,8 @@ object Issue {
   type Comment = String
   type Issues[F[_]] =
     Entities.Rejectable[IssueId, Issue, F, IssueRejection]
+
+  implicit val functorK: FunctorK[Issue] = Derive.functorK[Issue]
 
   implicit val rejectionPickler: boopickle.Pickler[IssueRejection] =
     compositePickler[IssueRejection]

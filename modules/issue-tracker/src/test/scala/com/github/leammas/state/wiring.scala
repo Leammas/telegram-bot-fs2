@@ -25,7 +25,7 @@ object wiring {
     private implicit val shift: ContextShift[IO] =
       cats.effect.internals.IOContextShift.global
 
-    def init(issues: Map[IssueId, Chain[IssueEvent]]): ProcessState = {
+    def init(issues: Map[IssueId, Chain[IssueEvent]] = Map.empty): ProcessState = {
 
       (for {
         i <- Ref.of[IO, Map[IssueId, Chain[IssueEvent]]](issues)

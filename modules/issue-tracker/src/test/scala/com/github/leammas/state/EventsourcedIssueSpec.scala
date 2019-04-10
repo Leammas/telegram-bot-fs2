@@ -19,7 +19,7 @@ class EventsourcedIssueSpec extends FlatSpec with Matchers {
       r <- issue.markResolved
     } yield r
 
-    val s = ProcessState.init(Map.empty)
+    val s = ProcessState.init()
     result.run(s).unsafeRunSync() shouldEqual ().asRight
     s.issues.value.get.unsafeRunSync()(issueId).length shouldEqual 3
   }

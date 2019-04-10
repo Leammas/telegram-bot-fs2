@@ -67,7 +67,7 @@ object state {
     ): TodoListStorage[F] = new TodoListStorage[F] {
       def addItem(chatId: ChatId, item: Item): F[Unit] =
         AA.ask.flatMap(
-          _.value.update(s => Record(chatId, item) :: s.value).to[F])
+          _.value.update(s => Record(chatId, item) :: s).to[F])
 
       def getItems(chatId: ChatId): F[List[Item]] =
         AA.ask.flatMap(
@@ -75,7 +75,7 @@ object state {
 
       def clearList(chatId: ChatId): F[Unit] =
         AA.ask.flatMap(
-          _.value.update(s => s.value.filterNot(_.chatId == chatId)).to[F])
+          _.value.update(s => s.filterNot(_.chatId == chatId)).to[F])
     }
   }
 
@@ -108,8 +108,10 @@ object state {
     def apply[F[_]: Monad: LiftIO](
         implicit AA: ApplicativeAsk[F, InnerState]): AdminNotifier[F] =
       new AdminNotifier[F] {
-        def notify(chatId: ChatId): F[Unit] =
+        def notify(chatId: ChatId): F[Unit] = {
           AA.ask.flatMap(_.q.enqueue1(chatId).to[F])
+        }
+
       }
   }
 

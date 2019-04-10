@@ -2,15 +2,10 @@ package com.github.leammas.integration
 
 import aecor.runtime.Eventsourced.Entities
 import cats.data.ReaderT
-import cats.effect.{IO, LiftIO}
+import cats.effect.{ContextShift, IO, LiftIO}
 import cats.mtl.ApplicativeAsk
 import cats.{Monad, ~>}
-import com.github.leammas.issue.issuetracker.{
-  Issue,
-  IssueId,
-  IssueRejection,
-  Notifications
-}
+import com.github.leammas.issue.issuetracker.{Issue, IssueId, IssueRejection, Notifications}
 import com.github.leammas.testkit.statet.HasLens
 import com.github.leammas.testkit.statet.HasLens._
 import monocle.macros.GenLens
@@ -18,7 +13,8 @@ import ru.pavkin.telegram.api.ChatId
 import cats.implicits._
 import com.github.leammas.testkit.statet.ReaderTransform._
 import cats.tagless.syntax.functorK._
-import scala.concurrent.ExecutionContext.Implicits.global
+
+import scala.concurrent.ExecutionContext.global
 import cats.mtl.implicits._
 
 object state {
@@ -56,11 +52,12 @@ object state {
     implicit def lens: HasLens[IntegrationState, BorrowedState] =
       GenLens[IntegrationState](_.bot.notifications).toHasLens
 
+    //size bound& :S
     def apply[F[_]: Monad: LiftIO](
         implicit AA: ApplicativeAsk[F, BorrowedState]): Notifications[F] =
       new Notifications[F] {
         def events: fs2.Stream[F, ChatId] =
-          fs2.Stream.eval(AA.ask).flatMap(_.q.dequeue.translate(liftIO))
+          fs2.Stream.eval(AA.ask).flatMap(_.q.dequeue.head.translate(liftIO))
       }
   }
 
@@ -95,8 +92,12 @@ object state {
   val runningIssues = issueWiring.issueCreationProcess.run
 
   def runTestApp(state: IntegrationState): IntegrationState = {
-
-    (runningIssues, runningBot).parMapN((_, _) => ())
+    implicit val contextShift: ContextShift[IO] = IO.contextShift(global)
+    (runningIssues, runningBot)
+      .parMapN((_, _) => ())
+      .run(state)
+      .redeem(_ => state, _ => state)
+      .unsafeRunSync()
   }
 
 }
