@@ -58,7 +58,7 @@ lazy val baseSettings = Seq(
     catsMTL,
     catsTagless
   ) ++ doobie ++ testContainers ++ monocle,
-  scalacOptions += "-Ypartial-unification",
+  scalacOptions ++= Seq("-Ypartial-unification","-Ywarn-value-discard","-language:higherKinds"),
   sources in (Compile, doc) := Nil,
   organization := "ru.pavkin",
   version := "0.0.1-SNAPSHOT",

@@ -14,7 +14,7 @@ final class IssueCreationProcess[F[_]: Sync](
     notifications: Notifications[F],
     step: IssueCreationProcessStep[F])(implicit F: MonadError[F, Throwable]) {
   def run: F[Unit] =
-    notifications.events.map(step.processNotification).compile.drain
+    notifications.events.evalMap(step.processNotification).compile.drain
 }
 
 final class IssueCreationProcessStep[F[_]](issues: Issues[F])(

@@ -17,31 +17,12 @@ class BotIssuesIntegrationSpec extends FlatSpec with Matchers {
     val resultState = runTestApp(
       IntegrationState(
         ru.pavkin.telegram.test.state.ProcessState.init(incomingMessages =
-          List(BotUpdate(1, BotMessage(1, Chat(chatId), item.some).some))),
+          List(BotUpdate(1, BotMessage(1, Chat(chatId), item.some).some), BotUpdate(2, BotMessage(2, Chat(chatId), item.some).some))),
         com.github.leammas.state.wiring.ProcessState.init(Map.empty)
       ))
 
-    println(resultState.issue.issues.value.get.unsafeRunSync())
-
     resultState.issue.issues.value.get.unsafeRunSync().get(IssueId(
       UUID.fromString("561db430-4351-11e9-b475-0800200c9a66"))).size shouldEqual 1
-  }
-
-
-
-  it should "create & comment & resolve issue" in {
-    import cats.syntax.either._
-    val issueId = IssueId(UUID.randomUUID())
-    val issue = issues(issueId)
-    val result = for {
-      _ <- issue.create(1, "foo")
-      _ <- issue.comment("bar")
-      r <- issue.markResolved
-    } yield r
-
-    val s = IntegrationState(ru.pavkin.telegram.test.state.ProcessState.init(), com.github.leammas.state.wiring.ProcessState.init(Map.empty))
-    result.run(s).unsafeRunSync() shouldEqual ().asRight
-    s.issue.issues.value.get.unsafeRunSync()(issueId).length shouldEqual 3
   }
 
 }
