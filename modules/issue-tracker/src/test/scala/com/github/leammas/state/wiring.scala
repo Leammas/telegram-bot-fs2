@@ -33,20 +33,19 @@ object wiring {
     }
   }
 
-  //@todo rename out of sync
-  type ProcessSyncState[T] = ReaderT[IO, ProcessState, T]
+  type AsyncTestReader[T] = ReaderT[IO, ProcessState, T]
 
-  implicit val aa: ApplicativeAsk[ProcessSyncState, ProcessState] =
-    new ApplicativeAsk[ProcessSyncState, ProcessState] {
-      val applicative: Applicative[ProcessSyncState] =
-        implicitly[Applicative[ProcessSyncState]]
+  implicit val aa: ApplicativeAsk[AsyncTestReader, ProcessState] =
+    new ApplicativeAsk[AsyncTestReader, ProcessState] {
+      val applicative: Applicative[AsyncTestReader] =
+        implicitly[Applicative[AsyncTestReader]]
 
-      def ask: ProcessSyncState[ProcessState] =
+      def ask: AsyncTestReader[ProcessState] =
         ReaderT[IO, ProcessState, ProcessState] { x =>
           IO.pure(x)
         }
 
-      def reader[A](f: ProcessState => A): ProcessSyncState[A] =
+      def reader[A](f: ProcessState => A): AsyncTestReader[A] =
         ReaderT[IO, ProcessState, A] { x =>
           IO.pure(f(x))
         }
@@ -56,7 +55,7 @@ object wiring {
     : HasLens[ProcessState, RefRuntime.InnerState[IssueId, IssueEvent]] =
     GenLens[ProcessState](_.issues).toHasLens
 
-  val issues: Issues[ProcessSyncState] =
-    RefRuntime[ProcessSyncState, IssueId](EventSourcedIssue.behavior)
+  val issues: Issues[AsyncTestReader] =
+    RefRuntime[AsyncTestReader, IssueId](EventSourcedIssue.behavior)
 
 }

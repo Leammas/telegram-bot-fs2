@@ -25,7 +25,7 @@ object state {
 
   final case class IntegrationState(bot: TgBotState, issue: IssueState)
 
-  type IntegrationSyncState[T] = ReaderT[IO, IntegrationState, T]
+  type IntegrationAsyncReader[T] = ReaderT[IO, IntegrationState, T]
 
   val tgbotTransform =
     new ~>[ReaderT[IO, TgBotState, ?], ReaderT[IO, IntegrationState, ?]] {
@@ -66,26 +66,26 @@ object state {
   val botApp = ru.pavkin.telegram.test.wiring.bot
 
   type IssueType[T] =
-    com.github.leammas.state.wiring.ProcessSyncState[Either[IssueRejection, T]]
+    com.github.leammas.state.wiring.AsyncTestReader[Either[IssueRejection, T]]
 
-  type IssueIntegrationType[T] = IntegrationSyncState[Either[IssueRejection, T]]
+  type IssueIntegrationType[T] = IntegrationAsyncReader[Either[IssueRejection, T]]
 
   val issueAggregateTransform = new ~>[IssueType, IssueIntegrationType] {
     def apply[A](fa: IssueType[A]): IssueIntegrationType[A] = fa.local(_.issue)
   }
 
-  val issues: Issue.Issues[IntegrationSyncState] = {
+  val issues: Issue.Issues[IntegrationAsyncReader] = {
     val innerIssues: IssueId => Issue[IssueType] = (k: IssueId) =>
       com.github.leammas.state.wiring.issues(k)
     Entities(innerIssues.andThen(_.mapK(issueAggregateTransform)))
   }
 
   val issueWiring =
-    new com.github.leammas.issue.issuetracker.Wiring[IntegrationSyncState](
-      StateNotifications[IntegrationSyncState],
+    new com.github.leammas.issue.issuetracker.Wiring[IntegrationAsyncReader](
+      StateNotifications[IntegrationAsyncReader],
       issues)
 
-  val runningBot: IntegrationSyncState[Unit] =
+  val runningBot: IntegrationAsyncReader[Unit] =
     tgbotTransform(botApp).flatMap(x =>
       x.launch.translate(tgbotTransform).compile.drain)
 

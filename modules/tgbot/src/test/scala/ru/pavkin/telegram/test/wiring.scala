@@ -8,15 +8,15 @@ import cats.mtl.implicits._
 
 object wiring {
 
-  val storage = StateTodoListStorage[ProcessSyncState]
+  val storage = StateTodoListStorage[AsyncTestReader]
 
-  val botApi = StateBotApi[ProcessSyncState]
+  val botApi = StateBotApi[AsyncTestReader]
 
-  val notifier = StateAdminNotifier[ProcessSyncState]
+  val notifier = StateAdminNotifier[AsyncTestReader]
 
-  val phraseChecker = new NaivePhraseChecker[ProcessSyncState]
+  val phraseChecker = new NaivePhraseChecker[AsyncTestReader]
 
-  val bot = Slf4jLogger.create[ProcessSyncState].map {
+  val bot = Slf4jLogger.create[AsyncTestReader].map {
     new TodoListBot(botApi, storage, phraseChecker, notifier, _)
   }
 

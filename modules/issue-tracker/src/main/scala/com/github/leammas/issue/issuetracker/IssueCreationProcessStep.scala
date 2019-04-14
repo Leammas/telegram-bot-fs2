@@ -25,7 +25,6 @@ final class IssueCreationProcessStep[F[_]](issues: Issues[F])(
   private val id = IssueId(
     UUID.fromString("561db430-4351-11e9-b475-0800200c9a66"))
 
-  //@todo test idea: create one, create two, fail, check state, show diff, parallelism
   def processNotification(alertedChatId: ChatId): F[Unit] =
     F.rethrow(
       issues(id)

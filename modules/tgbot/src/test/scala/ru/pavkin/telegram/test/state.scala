@@ -8,7 +8,7 @@ import cats.implicits._
 import cats.mtl.ApplicativeAsk
 import com.github.leammas.testkit.statet.HasLens
 import com.github.leammas.testkit.statet.HasLens._
-import fs2.concurrent.{InspectableQueue}
+import fs2.concurrent.InspectableQueue
 import monocle.macros.GenLens
 import ru.pavkin.telegram.api.dto.BotUpdate
 import ru.pavkin.telegram.api.{ChatId, Offset, StreamingBotAPI}
@@ -17,7 +17,6 @@ import ru.pavkin.telegram.todolist.{AdminNotifier, Item, TodoListStorage}
 
 object state {
 
-  //@todo autolens
   final case class ProcessState(records: StateTodoListStorage.InnerState,
                                 chatMessages: StateBotApi.InnerState,
                                 notifications: StateAdminNotifier.InnerState) {
@@ -53,8 +52,7 @@ object state {
     }
   }
 
-  //@todo not sync not state lol
-  type ProcessSyncState[T] = ReaderT[IO, ProcessState, T]
+  type AsyncTestReader[T] = ReaderT[IO, ProcessState, T]
 
   object StateTodoListStorage {
     final case class InnerState(value: Ref[IO, List[Record]]) extends AnyVal
