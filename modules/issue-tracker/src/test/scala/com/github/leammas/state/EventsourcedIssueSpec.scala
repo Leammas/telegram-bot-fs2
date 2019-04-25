@@ -6,6 +6,7 @@ import com.github.leammas.issue.issuetracker.IssueId
 import org.scalatest.{FlatSpec, Matchers}
 import wiring._
 import cats.syntax.either._
+import com.github.leammas.testkit.syntax._
 
 class EventsourcedIssueSpec extends FlatSpec with Matchers {
 
@@ -21,6 +22,8 @@ class EventsourcedIssueSpec extends FlatSpec with Matchers {
 
     val s = ProcessState.init()
     result.run(s).unsafeRunSync() shouldEqual ().asRight
-    s.issues.value.get.unsafeRunSync()(issueId).length shouldEqual 3
+    s.issues.store.get.unsafeRunSync()(issueId).length shouldEqual 3
+    // check if events have been published
+    s.issues.queue.dequeueCurrent.unsafeRunSync().length shouldEqual 3
   }
 }

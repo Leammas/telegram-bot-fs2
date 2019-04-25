@@ -5,16 +5,13 @@ import cats.data.{Chain, ReaderT}
 import cats.effect.concurrent.Ref
 import cats.effect.{ContextShift, IO}
 import cats.mtl.ApplicativeAsk
-import com.github.leammas.issue.issuetracker.{
-  EventSourcedIssue,
-  IssueEvent,
-  IssueId
-}
+import com.github.leammas.issue.issuetracker.{EventSourcedIssue, IssueEvent, IssueId}
 import com.github.leammas.testkit.statet.HasLens
 import monocle.macros.GenLens
 import com.github.leammas.testkit.statet.HasLens._
 import com.github.leammas.testkit.statet.ReaderTransform._
 import com.github.leammas.issue.issuetracker.Issue._
+import fs2.concurrent.InspectableQueue
 
 object wiring {
 
@@ -29,7 +26,8 @@ object wiring {
 
       (for {
         i <- Ref.of[IO, Map[IssueId, Chain[IssueEvent]]](issues)
-      } yield ProcessState(RefRuntime.InnerState(i))).unsafeRunSync()
+        q <- InspectableQueue.unbounded[IO, (IssueId, IssueEvent)]
+      } yield ProcessState(RefRuntime.InnerState(i, q))).unsafeRunSync()
     }
   }
 

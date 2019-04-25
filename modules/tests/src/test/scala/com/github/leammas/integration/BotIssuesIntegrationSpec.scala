@@ -21,7 +21,7 @@ class BotIssuesIntegrationSpec extends FlatSpec with Matchers {
         com.github.leammas.state.wiring.ProcessState.init(Map.empty)
       ))
 
-    resultState.issue.issues.value.get.unsafeRunSync().get(IssueId(
+    resultState.issue.issues.store.get.unsafeRunSync().get(IssueId(
       UUID.fromString("561db430-4351-11e9-b475-0800200c9a66"))).size shouldEqual 1
   }
 

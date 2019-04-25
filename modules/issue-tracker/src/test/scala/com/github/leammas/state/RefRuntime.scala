@@ -10,12 +10,12 @@ import cats.effect.concurrent.Ref
 import cats.implicits._
 import cats.mtl.ApplicativeAsk
 import cats.tagless.FunctorK
+import fs2.concurrent.InspectableQueue
 
 object RefRuntime {
 
   // fair enough concurrency or move to mvar?
-  final case class InnerState[K, E](value: Ref[IO, Map[K, Chain[E]]])
-      extends AnyVal
+  final case class InnerState[K, E](store: Ref[IO, Map[K, Chain[E]]], queue: InspectableQueue[IO, (K, E)])
 
   final class Runner[F[_], K] {
     def apply[M[_[_]]: FunctorK, S, E, R](
@@ -28,10 +28,10 @@ object RefRuntime {
       def actionRunner(key: K): ActionRunner[F, Option[S], E] =
         new FunctionK[ActionT[F, Option[S], E, ?], F] {
           def apply[A](fa: ActionT[F, Option[S], E, A]): F[A] = AA.ask.flatMap {
-            events =>
+            state =>
               for {
                 currentEvents <- Flift
-                  .liftIO(events.value.get)
+                  .liftIO(state.store.get)
                   .map(_.getOrElse(key, Chain.empty))
                 currentState <- currentEvents
                   .foldM(behaviour.create)(behaviour.update)
@@ -42,12 +42,13 @@ object RefRuntime {
                   .flatMap(_.fold(F.raiseError[(Chain[E], A)](
                     new RuntimeException("Impossible fold")))(F.pure))
                 actionResultEvents = actionResult._1
-                _ <- Flift.liftIO(events.value.update(
+                _ <- Flift.liftIO(state.store.update(
                   s =>
                     s.updated(key,
                               s.get(key)
                                 .map(_ ++ actionResultEvents)
                                 .getOrElse(actionResultEvents))))
+                _ <- Flift.liftIO(actionResultEvents.traverse(e => state.queue.enqueue1((key, e))))
               } yield actionResult._2
           }
 
