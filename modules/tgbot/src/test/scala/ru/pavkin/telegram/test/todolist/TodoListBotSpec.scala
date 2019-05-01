@@ -25,7 +25,7 @@ class TodoListBotSpec extends FlatSpec with Matchers {
       ProcessState.init(incomingMessages =
         List(BotUpdate(1, BotMessage(1, Chat(chatId), item.some).some))))
 
-    resultState.notifications.q.dequeueCurrent
+    resultState.notifications.queue.dequeueCurrent
       .unsafeRunSync()
       .head shouldEqual chatId
     resultState.records.value.get.unsafeRunSync().head shouldEqual Record(

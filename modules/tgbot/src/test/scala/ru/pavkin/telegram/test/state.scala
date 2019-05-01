@@ -27,7 +27,7 @@ object state {
         .unsafeRunSync()
         .isEmpty && chatMessages.outgoing.get
         .unsafeRunSync()
-        .isEmpty && notifications.q.getSize.unsafeRunSync() === 0
+        .isEmpty && notifications.queue.getSize.unsafeRunSync() === 0
   }
 
   object ProcessState {
@@ -98,7 +98,7 @@ object state {
   }
 
   object StateAdminNotifier {
-    final case class InnerState(q: InspectableQueue[IO, ChatId]) extends AnyVal
+    final case class InnerState(queue: InspectableQueue[IO, ChatId]) extends AnyVal
 
     implicit def lens: HasLens[ProcessState, InnerState] =
       GenLens[ProcessState](_.notifications).toHasLens
@@ -107,7 +107,7 @@ object state {
         implicit AA: ApplicativeAsk[F, InnerState]): AdminNotifier[F] =
       new AdminNotifier[F] {
         def notify(chatId: ChatId): F[Unit] = {
-          AA.ask.flatMap(_.q.enqueue1(chatId).to[F])
+          AA.ask.flatMap(_.queue.enqueue1(chatId).to[F])
         }
 
       }

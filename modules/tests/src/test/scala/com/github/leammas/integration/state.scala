@@ -27,7 +27,7 @@ object state {
 
   type IntegrationAsyncReader[T] = ReaderT[IO, IntegrationState, T]
 
-  val tgbotTransform =
+  val tgbotTransform: ~>[ReaderT[IO, TgBotState, ?], ReaderT[IO, IntegrationState, ?]] =
     new ~>[ReaderT[IO, TgBotState, ?], ReaderT[IO, IntegrationState, ?]] {
       def apply[A](
           fa: ReaderT[IO, TgBotState, A]): ReaderT[IO, IntegrationState, A] =
@@ -49,16 +49,16 @@ object state {
     type BorrowedState =
       ru.pavkin.telegram.test.state.StateAdminNotifier.InnerState
 
+    def apply[F[_]: Monad: LiftIO](
+                                    implicit AA: ApplicativeAsk[F, BorrowedState]): Notifications[F] =
+      new Notifications[F] {
+        def events: fs2.Stream[F, ChatId] =
+          fs2.Stream.eval(AA.ask).flatMap(_.queue.dequeue.head.translate(liftIO))
+      }
+
     implicit def lens: HasLens[IntegrationState, BorrowedState] =
       GenLens[IntegrationState](_.bot.notifications).toHasLens
 
-    //size bound& :S
-    def apply[F[_]: Monad: LiftIO](
-        implicit AA: ApplicativeAsk[F, BorrowedState]): Notifications[F] =
-      new Notifications[F] {
-        def events: fs2.Stream[F, ChatId] =
-          fs2.Stream.eval(AA.ask).flatMap(_.q.dequeue.head.translate(liftIO))
-      }
   }
 
   import StateNotifications._
