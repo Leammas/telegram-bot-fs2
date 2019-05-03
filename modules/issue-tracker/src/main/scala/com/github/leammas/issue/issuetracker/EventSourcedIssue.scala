@@ -34,11 +34,11 @@ object IssueEvent {
 final case class IssueState(chatId: ChatId,
                             isResolved: Boolean,
                             description: Description,
-                            comments: Chain[Comment]) {
+                            comments: List[Comment]) {
   def handleEvent(e: IssueEvent): Folded[IssueState] = e match {
     case _: IssueEvent.IssueCreated => impossible
     case IssueEvent.IssueCommentAdded(message) =>
-      copy(comments = comments.append(message)).next
+      copy(comments = message :: comments).next
     case IssueEvent.IssueResolved => copy(isResolved = true).next
   }
 }
@@ -46,7 +46,7 @@ final case class IssueState(chatId: ChatId,
 object IssueState {
   def init(e: IssueEvent): Folded[IssueState] = e match {
     case IssueEvent.IssueCreated(chatId, description) =>
-      IssueState(chatId, isResolved = false, description, Chain.empty).next
+      IssueState(chatId, isResolved = false, description, List.empty).next
     case _: IssueEvent => impossible
   }
 }
@@ -76,6 +76,8 @@ final class EventSourcedIssue[F[_]: Functor, I[_]](
     case Some(_) => append(IssueCommentAdded(message))
     case None    => reject(IssueRejection.NotExists)
   }
+
+  def getState: I[Option[IssueState]] = read
 }
 
 object EventSourcedIssue {

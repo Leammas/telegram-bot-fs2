@@ -1,9 +1,8 @@
-package ru.pavkin.telegram.test.arbitrary
+package com.github.leammas.testkit
 
 import magnolia.{CaseClass, Magnolia, SealedTrait}
 import org.scalacheck.Gen.choose
 import org.scalacheck.{Arbitrary, Gen, GenHack}
-
 import scala.language.experimental.macros
 
 object MagnoliaArbitrary {

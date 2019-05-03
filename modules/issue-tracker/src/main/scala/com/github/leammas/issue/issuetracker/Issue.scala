@@ -18,6 +18,7 @@ trait Issue[F[_]] {
   def create(chatId: ChatId, description: Description): F[Unit]
   def markResolved: F[Unit]
   def comment(message: Comment): F[Unit]
+  def getState: F[Option[IssueState]]
 }
 
 object Issue {

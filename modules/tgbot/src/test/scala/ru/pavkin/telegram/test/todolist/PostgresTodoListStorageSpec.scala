@@ -5,7 +5,7 @@ import org.scalatest.FlatSpec
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.prop.{Checkers, PropertyChecks}
 import org.scalatest.time.{Millis, Seconds, Span}
-import ru.pavkin.telegram.test.arbitrary.MagnoliaArbitrary._
+import com.github.leammas.testkit.MagnoliaArbitrary._
 import ru.pavkin.telegram.test.db.PostgresTest
 import ru.pavkin.telegram.todolist.PostgresTodoListStorage
 import ru.pavkin.telegram.todolist.PostgresTodoListStorage.Record
