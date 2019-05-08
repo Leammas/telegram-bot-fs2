@@ -1,19 +1,21 @@
 package com.github.leammas.state
 
-import cats.Applicative
+import cats.mtl.implicits._ // look ma, still not ambiguous
 import cats.data.{Chain, ReaderT}
 import cats.effect.concurrent.Ref
 import cats.effect.{ContextShift, IO}
 import cats.mtl.ApplicativeAsk
-import com.github.leammas.issue.issuetracker.{EventSourcedIssue, IssueEvent, IssueId}
-import com.github.leammas.testkit.statet.HasLens
-import monocle.macros.GenLens
-import com.github.leammas.testkit.statet.HasLens._
-import com.github.leammas.testkit.statet.ReaderTransform._
-import com.github.leammas.issue.issuetracker.Issue._
+import com.github.leammas.issue.issuetracker.{
+  EventSourcedIssue,
+  IssueEvent,
+  IssueId
+}
+import com.olegpy.meow.optics.MkLensToType
 import fs2.concurrent.InspectableQueue
+import shapeless.=:!=
 
 object wiring {
+  import com.github.leammas.issue.issuetracker.Issue._
 
   final case class ProcessState(
       issues: RefRuntime.InnerState[IssueId, IssueEvent])
@@ -22,7 +24,8 @@ object wiring {
     private implicit val shift: ContextShift[IO] =
       cats.effect.internals.IOContextShift.global
 
-    def init(issues: Map[IssueId, Chain[IssueEvent]] = Map.empty): ProcessState = {
+    def init(
+        issues: Map[IssueId, Chain[IssueEvent]] = Map.empty): ProcessState = {
 
       (for {
         i <- Ref.of[IO, Map[IssueId, Chain[IssueEvent]]](issues)
@@ -33,25 +36,12 @@ object wiring {
 
   type AsyncTestReader[T] = ReaderT[IO, ProcessState, T]
 
-  implicit val aa: ApplicativeAsk[AsyncTestReader, ProcessState] =
-    new ApplicativeAsk[AsyncTestReader, ProcessState] {
-      val applicative: Applicative[AsyncTestReader] =
-        implicitly[Applicative[AsyncTestReader]]
+  type AbstractTestReader[F[_]] = ApplicativeAsk[F, ProcessState]
 
-      def ask: AsyncTestReader[ProcessState] =
-        ReaderT[IO, ProcessState, ProcessState] { x =>
-          IO.pure(x)
-        }
-
-      def reader[A](f: ProcessState => A): AsyncTestReader[A] =
-        ReaderT[IO, ProcessState, A] { x =>
-          IO.pure(f(x))
-        }
-    }
-
-  implicit def lens
-    : HasLens[ProcessState, RefRuntime.InnerState[IssueId, IssueEvent]] =
-    GenLens[ProcessState](_.issues).toHasLens
+  implicit def asyncReaderDeriver[F[_]: AbstractTestReader, A](
+      implicit neq: ProcessState =:!= A,
+      mkLensToType: MkLensToType[ProcessState, A]): ApplicativeAsk[F, A] =
+    com.olegpy.meow.hierarchy.deriveApplicativeAsk[F, ProcessState, A]
 
   val issues: Issues[AsyncTestReader] =
     RefRuntime[AsyncTestReader, IssueId](EventSourcedIssue.behavior)

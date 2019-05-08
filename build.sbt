@@ -39,6 +39,8 @@ val aecor = Seq(
   "io.aecor" %% "test-kit" % aecorVersion % Test
 )
 
+val meow = "com.olegpy" %% "meow-mtl" % "0.2.0" % Test
+
 lazy val baseSettings = Seq(
   libraryDependencies ++= Seq(
     compilerPlugin("org.spire-math" %% "kind-projector" % kindProjectorVersion),
@@ -56,7 +58,8 @@ lazy val baseSettings = Seq(
     pureconfig,
     catsEffect,
     catsMTL,
-    catsTagless
+    catsTagless,
+    meow
   ) ++ doobie ++ testContainers ++ monocle,
   scalacOptions ++= Seq("-Ypartial-unification","-Ywarn-value-discard","-language:higherKinds"),
   sources in (Compile, doc) := Nil,

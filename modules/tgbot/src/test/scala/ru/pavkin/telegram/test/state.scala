@@ -6,14 +6,13 @@ import cats.effect._
 import cats.effect.concurrent.Ref
 import cats.implicits._
 import cats.mtl.ApplicativeAsk
-import com.github.leammas.testkit.statet.HasLens
-import com.github.leammas.testkit.statet.HasLens._
+import com.olegpy.meow.optics.MkLensToType
 import fs2.concurrent.InspectableQueue
-import monocle.macros.GenLens
 import ru.pavkin.telegram.api.dto.BotUpdate
 import ru.pavkin.telegram.api.{ChatId, Offset, StreamingBotAPI}
 import ru.pavkin.telegram.todolist.PostgresTodoListStorage.Record
 import ru.pavkin.telegram.todolist.{AdminNotifier, Item, TodoListStorage}
+import shapeless.=:!=
 
 object state {
 
@@ -54,18 +53,21 @@ object state {
 
   type AsyncTestReader[T] = ReaderT[IO, ProcessState, T]
 
+  type AbstractTestReader[F[_]] = ApplicativeAsk[F, ProcessState]
+
+  implicit def asyncReaderDeriver[F[_]: AbstractTestReader, A](
+      implicit neq: ProcessState =:!= A,
+      mkLensToType: MkLensToType[ProcessState, A]): ApplicativeAsk[F, A] =
+    com.olegpy.meow.hierarchy.deriveApplicativeAsk[F, ProcessState, A]
+
   object StateTodoListStorage {
     final case class InnerState(value: Ref[IO, List[Record]]) extends AnyVal
-
-    implicit def lens: HasLens[ProcessState, InnerState] =
-      GenLens[ProcessState](_.records).toHasLens
 
     def apply[F[_]: Monad: LiftIO](
         implicit AA: ApplicativeAsk[F, InnerState]
     ): TodoListStorage[F] = new TodoListStorage[F] {
       def addItem(chatId: ChatId, item: Item): F[Unit] =
-        AA.ask.flatMap(
-          _.value.update(s => Record(chatId, item) :: s).to[F])
+        AA.ask.flatMap(_.value.update(s => Record(chatId, item) :: s).to[F])
 
       def getItems(chatId: ChatId): F[List[Item]] =
         AA.ask.flatMap(
@@ -81,9 +83,6 @@ object state {
     final case class InnerState(incoming: Ref[IO, List[BotUpdate]],
                                 outgoing: Ref[IO, List[(ChatId, String)]])
 
-    implicit def lens: HasLens[ProcessState, InnerState] =
-      GenLens[ProcessState](_.chatMessages).toHasLens
-
     def apply[F[_]: Sync: LiftIO](
         implicit AA: ApplicativeAsk[F, InnerState]
     ): StreamingBotAPI[F] = new StreamingBotAPI[F] {
@@ -98,10 +97,8 @@ object state {
   }
 
   object StateAdminNotifier {
-    final case class InnerState(queue: InspectableQueue[IO, ChatId]) extends AnyVal
-
-    implicit def lens: HasLens[ProcessState, InnerState] =
-      GenLens[ProcessState](_.notifications).toHasLens
+    final case class InnerState(queue: InspectableQueue[IO, ChatId])
+        extends AnyVal
 
     def apply[F[_]: Monad: LiftIO](
         implicit AA: ApplicativeAsk[F, InnerState]): AdminNotifier[F] =

@@ -1,6 +1,6 @@
 package ru.pavkin.telegram.test
 
-import com.github.leammas.testkit.statet.ReaderTransform._
+
 import io.chrisdavenport.log4cats.slf4j.Slf4jLogger
 import ru.pavkin.telegram.test.state.{StateTodoListStorage, _}
 import ru.pavkin.telegram.todolist._
